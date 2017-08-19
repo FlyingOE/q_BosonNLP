@@ -33,16 +33,14 @@ Sentiment:{[token;model;strs]
 / 命名实体识别
 / @see http://docs.bosonnlp.com/ner.html
 / @param token (String) BosonNLP API密钥
-/ @param sensitivity (Int) 1 to 5 (default: 3)
+/ @param sensitivity (Int) 1 to 5 (null defaults to 3)
 / @param strs (String List) string or list of strings to be analyzed (max 100 strings in one query)
 / @return (Table) columns: {@literal tag}, {@literal word} and {@literal entity} 
 NER:{[token;sensitivity;strs]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/ner/analysis";
-                enlist[`sensitivity]!1#3; ]
+            impl.buildHeader[token;"/ner/analysis";
+                (1#`sensitivity)!1#3^sensitivity; ]
            ;$[10h=type strs;enlist strs;strs]]
     };
 
@@ -54,9 +52,7 @@ NER:{[token;sensitivity;strs]
 DepParser:{[token;strs]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/depparser/analysis";
+            impl.buildHeader[token;"/depparser/analysis";
                 ()!(); ]
            ;$[10h=type strs;enlist strs;strs]]
     };
@@ -69,9 +65,7 @@ DepParser:{[token;strs]
 Classify:{[token;strs]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/classify/analysis";
+            impl.buildHeader[token;"/classify/analysis";
                 ()!(); ]
            ;$[10h=type strs;enlist strs;strs]]
     };
@@ -79,48 +73,44 @@ Classify:{[token;strs]
 / 语义联想
 / @see http://docs.bosonnlp.com/suggest.html
 / @param token (String) BosonNLP API密钥
-/ @param params (Dict) additional query parameters
+/ @param topN (Int) top-N suggestions (null defaults to 10)
 / @param word (String) word to be analyzed
 / @return (List) list of {@literal (weight, word/type)} pairs
-Suggest:{[token;params;word]
+Suggest:{[token;topN;word]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/suggest/analysis";
-                (1#`top_k)!(1#10); ]
+            impl.buildHeader[token;"/suggest/analysis";
+                (1#`top_k)!1#10^topN; ]
            ;word]
     };
 
 / 关键词提取
 / @see http://docs.bosonnlp.com/keywords.html
 / @param token (String) BosonNLP API密钥
-/ @param params (Dict) additional query parameters
-/ @param str (String) string to be analyzed
+/ @param topN (Int) top-N keywords (null defaults to 100)
+/ @param segmented (Bool) if the input text has already been segmented
+/ @param str (String) string or segmented result to be analyzed
 / @return (List) list of {@literal (weight, keyword)} pairs
-Keywords:{[token;params;str]
+/ @see .boson.Tag
+Keywords:{[token;topN;segmented;str]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/keywords/analysis";
-                (`segmented _`top_k`segmented!100 1),params; ]
+            impl.buildHeader[token;"/keywords/analysis";
+                $[segmented;::;`segmented _]`top_k`segmented!(100^topN;1b); ]
            ;str]
     };
     
 / 分词与词性标注
 / @see http://docs.bosonnlp.com/tag.html
 / @param token (String) BosonNLP API密钥
-/ @param params (Dict) additional query parameters
+/ @param params (Dict) additional query parameters (see BosonNLP docs)
 / @param strs () string or strings to be analyzed
 / @return (Table) columns: {@literal tag} and {@literal word} 
 Tag:{[token;params;strs]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/tag/analysis";
-                (`space_mode`oov_level`t2s`special_char_conv!0 3 0 0),params; ]
+            impl.buildHeader[token;"/tag/analysis";
+                (`oov_level`space_mode`t2s`special_char_conv!3,000b),params; ]
            ;$[10h=type strs;enlist strs;strs]]
         };
 
@@ -133,29 +123,25 @@ Tag:{[token;params;strs]
 Time:{[token;pattern;basetime]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/time/analysis";
-                ((1#`pattern)!1#`$pattern),$[null basetime;()!();(1#`basetime)!1#`$string basetime]; ]
+            impl.buildHeader[token;"/time/analysis";
+                $[null basetime;`basetime _;::]`pattern`basetime!`$(pattern;string basetime); ]
            ;::]
         };
 
 / 新闻摘要
 / @see http://docs.bosonnlp.com/summary.html
 / @param token (String) BosonNLP API密钥
-/ @param pct (Real) if {@literal <= 0}, summarize to percentage of original text; else, summerize to {@code pct} characters
+/ @param pct (Real) if {@literal <= 0}, summarize to percentage of original text; else, summerize to {@code pct} characters (null defaults to {@literal 0.3})
 / @param strict (Bool) if to strictly obey {@code pct} limit (may sacrifice quality of summary text)
-/ @param title (String) title of the article
+/ @param title (String) title of the article (may be empty)
 / @param body (String) body text of the article (max 10000 characters)
 / @return (String) summary text
 Summary:{[token;pct;strict;title;body]
     impl.extractResult
         impl.query[
-            impl.buildHeader[
-                token;
-                "/summary/analysis";
+            impl.buildHeader[token;"/summary/analysis";
                 ()!(); ]
-           ;`not_exceed`percentage`title`content!(strict+0;pct;title;body)]
+           ;`not_exceed`percentage`title`content!(strict;.3^pct;title;body)]
     };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -189,7 +175,7 @@ impl.buildQueryStr:{[path;params]
     
 / Actually issue a REST query
 impl.query:{[headerBuilder;data]
-    hsym[`$URL]"\r\n"sv headerBuilder[count d],("";0N!d:.j.j data)
+    hsym[`$URL]0N!"\r\n"sv headerBuilder[count d],("";0N!d:.j.j data)
     };
 
 \
