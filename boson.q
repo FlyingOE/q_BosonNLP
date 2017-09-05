@@ -162,7 +162,7 @@ impl.extractResult:{
 impl.buildHeader:{[token;path;params;len]
     enlist[" "sv(REQ_TYPE;impl.buildQueryStr[path;params];"HTTP/1.1")],
     ": "sv/:flip(key;value)@\:
-        (enlist["Host"]!enlist last"/"vs URL),
+        (("Connection";"Host")!("close";last"/"vs URL)),
         REQ_HEADERS,
         (enlist["X-Token"]!enlist token),
         $[null len;()!();enlist["Content-Length"]!enlist string len]
